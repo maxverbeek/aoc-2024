@@ -10,7 +10,7 @@ func main() {
 	var first, second []int
 	appearances := map[int]int{}
 
-	var left, right int
+	var left, right, sum, sim int
 
 	for {
 		// this if-statement is necessary because scanf has 2 return values, and you cannot use 2 return values in a loop
@@ -25,9 +25,6 @@ func main() {
 	Ints(first)
 	Ints(second)
 
-	sum := 0
-	sim := 0
-
 	for i, left := range first {
 		right := second[i]
 
@@ -35,5 +32,6 @@ func main() {
 		sim += left * appearances[left]
 	}
 
-	Printf("%d\n%d\n", sum, sim)
+	println(sum)
+	println(sim)
 }
