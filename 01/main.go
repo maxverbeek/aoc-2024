@@ -2,33 +2,31 @@ package main
 
 import (
 	_ "embed"
-	"fmt"
-	"sort"
-	"strings"
+	// super nasty, but not having to type fmt. or sort. etc saves 2 tokens each time i use these functions
+	. "fmt"
+	. "sort"
+	. "strings"
 )
 
 //go:embed input.txt
 var input string
 
 func main() {
-	length := strings.Count(input, "\n") + 1
+	length := Count(input, "\n") + 1
 	first := make([]int, length)
 	second := make([]int, length)
 	appearances := make(map[int]int)
 
-	for i, line := range strings.Split(input, "\n") {
-		right := &second[i]
-		fmt.Sscanf(line, "%d   %d", &first[i], right)
+	for i, line := range Split(input, "\n") {
+		// fmt.Sscanf
+		Sscanf(line, "%d   %d", &first[i], &second[i])
 
-		if count, ok := appearances[*right]; ok {
-			appearances[*right] = count + 1
-		} else {
-			appearances[*right] = 1
-		}
+		appearances[second[i]] += 1
 	}
 
-	sort.Ints(first)
-	sort.Ints(second)
+	// sort.Ints
+	Ints(first)
+	Ints(second)
 
 	sum := 0
 	sim := 0
@@ -40,6 +38,6 @@ func main() {
 		sim += left * appearances[left]
 	}
 
-	println("Part 1: ", sum)
-	println("Part 2: ", sim)
+	println(sum)
+	println(sim)
 }
