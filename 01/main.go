@@ -1,27 +1,24 @@
 package main
 
 import (
-	_ "embed"
 	// super nasty, but not having to type fmt. or sort. etc saves 2 tokens each time i use these functions
 	. "fmt"
 	. "sort"
-	. "strings"
 )
 
-//go:embed input.txt
-var input string
-
 func main() {
-	length := Count(input, "\n") + 1
-	first := make([]int, length)
-	second := make([]int, length)
-	appearances := make(map[int]int)
+	var first, second []int
+	appearances := map[int]int{}
 
-	for i, line := range Split(input, "\n") {
-		// fmt.Sscanf
-		Sscanf(line, "%d   %d", &first[i], &second[i])
+	var left, right int
 
-		appearances[second[i]] += 1
+	for {
+		// this if-statement is necessary because scanf has 2 return values, and you cannot use 2 return values in a loop
+		if _, err := Scanf("%d   %d\n", &left, &right); err != nil {
+			break
+		}
+		first, second = append(first, left), append(second, right)
+		appearances[right] += 1
 	}
 
 	// sort.Ints
@@ -38,6 +35,5 @@ func main() {
 		sim += left * appearances[left]
 	}
 
-	println(sum)
-	println(sim)
+	Printf("%d\n%d\n", sum, sim)
 }
