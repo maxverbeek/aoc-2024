@@ -18,7 +18,7 @@ func main() {
 			break
 		}
 		first, second = append(first, left), append(second, right)
-		appearances[right] += 1
+		appearances[right]++
 	}
 
 	// sort.Ints
