@@ -8,27 +8,32 @@ import (
 )
 
 func main() {
-	var first, second []int
-	appearances := map[int]int{}
+	var first, second []float64
+	appearances := map[float64]int{}
 
-	var left, right, sum, sim int
+	var left, right, sum float64
+	var sim int
 	var err error
 
 	for err == nil {
 		// this if-statement is necessary because scanf has 2 return values, and you cannot use 2 return values in a loop
-		_, err = Scanf("%d   %d\n", &left, &right)
+		_, err = Scanf("%f   %f\n", &left, &right)
 		first, second = append(first, left), append(second, right)
 		appearances[right]++
 	}
 
 	// sort.Ints
-	Ints(first)
-	Ints(second)
+	Float64s(first)
+	Float64s(second)
 
 	for i, left := range first {
-		sum += int(Abs(float64(left - second[i])))
-		sim += left * appearances[left]
+		sum += Abs(left - second[i])
+		sim += int(left) * appearances[left]
 	}
 
-	println(sum, sim)
+	// 122 tokens with scientific notation
+	// println(sum, sim)
+
+	// 124 tokens without scientific notation
+	Printf("%.0f\n%d\n", sum, sim)
 }
