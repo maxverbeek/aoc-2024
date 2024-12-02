@@ -1,51 +1,53 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
-	"os"
-	"strconv"
+	. "bufio"
+	. "math"
+	. "os"
+	. "strconv"
 	"strings"
 )
 
-// func main() {
-// 	var num int
-// 	var whitespace rune
-// 	_, err := fmt.Scanf("%d%c", &num, &whitespace)
-// 	for err == nil && whitespace != '\n' {
-// 		println(num)
-// 		_, err = fmt.Scanf("%d%c", &num, &whitespace)
-// 	}
-// }
+func safe(levels []float64) bool {
+	// nasty trick to iterate len(levels) - 2 times, i ranges from [0 .. len-1)
+	for i := range levels[1:] {
+		level1 := levels[i]
+		level2 := levels[i+1]
+		diff := Abs(level1 - level2)
+		if diff < 1 || diff > 3 || levels[1] > levels[0] != (level2 > level1) {
+			return false
+		}
+	}
+	return true
+}
 
 func main() {
-	scanner := bufio.NewScanner(os.Stdin)
+	scanner := NewScanner(Stdin)
 
-	valid := 0
+	var part1, part2 int
 
-outter:
 	for scanner.Scan() {
-		levels := strings.Fields(scanner.Text())
-		println(scanner.Text())
-		ascending := true
-		for i := 1; i < len(levels); i++ {
-			level1, _ := strconv.Atoi(levels[i-1])
-			level2, _ := strconv.Atoi(levels[i])
-			diff := max(level1-level2, level2-level1)
-			if diff < 1 || diff > 3 {
-				fmt.Printf("rejected by %f %f difference too big\n", level1, level2)
-				continue outter
-			}
+		fields := strings.Fields(scanner.Text())
+		var levels []float64
 
-			if i == 1 {
-				ascending = level2 > level1
-			} else if ascending != (level2 > level1) {
-				fmt.Printf("rejected by %f %f (%b)\n", level1, level2, ascending)
-				continue outter
+		for _, field := range fields {
+			l, _ := ParseFloat(field, 64)
+			levels = append(levels, l)
+		}
+
+		if safe(levels) {
+			part1++
+			continue
+		}
+
+		// not safe, so try deleting random elements and test again
+		for i := range levels {
+			if safe(append(append([]float64{}, levels[:i]...), levels[i+1:]...)) {
+				part2++
+				break
 			}
 		}
-		valid++
 	}
 
-	println(valid)
+	println(part1, part1+part2)
 }
