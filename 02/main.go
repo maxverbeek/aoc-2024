@@ -4,6 +4,7 @@ import (
 	. "bufio"
 	. "math"
 	. "os"
+	"slices"
 	. "strconv"
 	"strings"
 )
@@ -42,7 +43,7 @@ func main() {
 
 		// not safe, so try deleting random elements and test again
 		for i := range levels {
-			if safe(append(append([]float64{}, levels[:i]...), levels[i+1:]...)) {
+			if safe(append(slices.Clone(levels[:i]), levels[i+1:]...)) {
 				part2++
 				break
 			}
