@@ -1,68 +1,77 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
-	"os"
+	. "bufio"
+	. "os"
 )
 
+// abuse global variables a bit, because passing arguments = extra tokens
 var input []string
-var width, height int
+
+// each kernel is separated by 2 newlines
+// each line of each kernel is separated by a newline
+// some lines have trailing spaces to indicate that nothing needs to be there.
+// nvim: use :set list to show trailing spaces
+const kernels1 = `XMAS
+
+SAMX
+
+X
+M
+A
+S
+
+S
+A
+M
+X
+
+X   
+ M  
+  A 
+   S
+
+   X
+  M 
+ A  
+S   
+
+   S
+  A 
+ M  
+X   
+
+S   
+ A  
+  M 
+   X`
+
+const kernels2 = `M S
+ A 
+M S
+
+M M
+ A 
+S S
+
+S M
+ A 
+S M
+
+S S
+ A 
+M M`
 
 func main() {
-	scanner := bufio.NewScanner(os.Stdin)
+	scanner := NewScanner(Stdin)
 
 	for scanner.Scan() {
 		input = append(input, scanner.Text())
 	}
 
-	width, height = len(input[0]), len(input)
-	var part1, part2 int
-
-	for row, line := range input {
-		for col := range line {
-			var deltas = [...]int{-1, 0, 1}
-			for _, dx := range deltas {
-				for _, dy := range deltas {
-					part1 += Search1(row, col, dx, dy)
-				}
-			}
-			part2 += Search2(row, col)
-		}
-	}
-
-	println(part1, part2)
-}
-
-func Search1(row, col, dx, dy int) int {
-	for i, r := range "XMAS" {
-		x := col + dx*i
-		y := row + dy*i
-
-		if x < 0 || x >= width || y < 0 || y >= height || input[y][x] != byte(r) {
-			return 0
-		}
-	}
-
-	return 1
-}
-
-// 1899 is too low
-func Search2(row, col int) int {
-	if input[row][col] != 'A' {
-		return 0
-	}
-
-	if row < 1 || row >= height-1 || col < 1 || col >= width-1 {
-		return 0
-	}
-
-	d1 := fmt.Sprintf("%c%c", input[row-1][col-1], input[row+1][col+1])
-	d2 := fmt.Sprintf("%c%c", input[row+1][col-1], input[row-1][col+1])
-
-	if (d1 != "MS" && d1 != "SM") || (d2 != "MS" && d2 != "SM") {
-		return 0
-	}
-
-	return 1
+	// The search function is defined in another file. In that file I also
+	// import "strings" which, if you import it unqualified, conflicts with
+	// bufio. This is why I put it in a separate file, so that I can import
+	// both bufio and strings unqualified. Saves 1 token
+	println(Search(kernels1), Search(kernels2))
 }
