@@ -20,6 +20,22 @@ type Block struct {
 	size      int
 }
 
+func Print(disk *list.List) {
+	for block := disk.Front(); block != nil; block = block.Next() {
+		b := block.Value.(Block)
+
+		for i := 0; i < b.size; i++ {
+			if b.blocktype == File {
+				fmt.Printf("%d", b.id)
+			} else {
+				fmt.Printf(".")
+			}
+		}
+	}
+
+	fmt.Printf("\n")
+}
+
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
@@ -34,7 +50,7 @@ func main() {
 
 		if i%2 == 0 {
 			// file
-			block.id = i
+			block.id = i / 2
 			block.blocktype = File
 		} else {
 			block.blocktype = Space
@@ -43,19 +59,10 @@ func main() {
 		disk.PushBack(block)
 	}
 
-	for block := disk.Front(); block != nil; block = block.Next() {
-		b := block.Value.(Block)
-
-		if b.blocktype == File {
-			fmt.Printf("%d", b.id)
-		} else {
-			fmt.Printf(".")
-		}
-	}
-
 	start, end := disk.Front(), disk.Back()
 
 	for start != nil && end != nil && start != end {
+		// Print(disk)
 		startblock, endblock := start.Value.(Block), end.Value.(Block)
 
 		if startblock.blocktype != Space {
@@ -70,26 +77,23 @@ func main() {
 
 		// invariant: start is space, end is a file
 		if startblock.size < endblock.size {
-			// split up end because it's too big
-			split := Block{
-				id:        startblock.id,
-				blocktype: startblock.blocktype,
-				size:      endblock.size - startblock.size,
-			}
-			disk.InsertAfter(split, start)
-			startblock.size = endblock.size
-			start.Value = startblock
-		} else if startblock.size > endblock.size {
-			// split up start because it's too big
-			split := Block{
+			// end is too large, so split it in two
+			splitblock := Block{
 				id:        endblock.id,
 				blocktype: endblock.blocktype,
+				size:      endblock.size - startblock.size,
+			}
+			disk.InsertBefore(splitblock, end)
+			endblock.size = startblock.size
+		} else if startblock.size > endblock.size {
+			// split up start because it's too big
+			splitblock := Block{
+				id:        startblock.id,
+				blocktype: startblock.blocktype,
 				size:      startblock.size - endblock.size,
 			}
-			fmt.Printf("Splitting start block: %v\n", end)
-			disk.InsertBefore(split, end)
-			endblock.size = startblock.size
-			end.Value = endblock
+			disk.InsertAfter(splitblock, start)
+			startblock.size = endblock.size
 		}
 
 		// size matches exactly
@@ -99,23 +103,16 @@ func main() {
 
 	part1 := 0
 
-	position := -1
+	// Print(disk)
+	position := 0
 
 	for block := disk.Front(); block != nil; block = block.Next() {
-		position++
 		b := block.Value.(Block)
 
-		if b.blocktype == File {
-			fmt.Printf("%d", b.id)
-		} else {
-			fmt.Printf(".")
+		for i := 0; i < b.size; i++ {
+			part1 += position * b.id
+			position++
 		}
-
-		if b.blocktype == Space {
-			continue
-		}
-
-		part1 += position * b.size
 	}
 
 	println(part1)
