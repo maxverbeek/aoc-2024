@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"os"
+	"slices"
 )
 
 func main() {
@@ -21,32 +22,34 @@ func main() {
 	}
 
 	part1 := 0
+	part2 := 0
 
 	for y := range world {
 		for x := range world[y] {
 			if world[y][x] == 0 {
-				count := WalkUphill(-1, x, y, world)
-				println(x, y, count)
-				part1 += count
+				destinations := WalkUphill(-1, x, y, world)
+				part2 += len(destinations)
+				slices.Sort(destinations)
+				part1 += len(slices.Compact(destinations))
 			}
 		}
 	}
 
-	println(part1)
+	println(part1, part2)
 }
 
-func WalkUphill(previous, x, y int, world [][]int) int {
+func WalkUphill(previous, x, y int, world [][]int) []int {
 	current := world[y][x]
 
 	if current != previous+1 {
-		return 0
+		return []int{}
 	}
 
 	if current == 9 {
-		return 1
+		return []int{y*len(world) + x}
 	}
 
-	var up, down, left, right int
+	var up, down, left, right []int
 
 	if y-1 >= 0 {
 		up = WalkUphill(current, x, y-1, world)
@@ -64,12 +67,7 @@ func WalkUphill(previous, x, y int, world [][]int) int {
 		right = WalkUphill(current, x+1, y, world)
 	}
 
-	sum := up + down + left + right
+	sum := append(up, append(down, append(left, right...)...)...)
 
-	// ????
-	if sum > 0 {
-		return 1
-	} else {
-		return 0
-	}
+	return sum
 }
