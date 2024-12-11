@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -14,39 +13,34 @@ func main() {
 	line := scanner.Text()
 	words := strings.Split(line, " ")
 
-	stones := make([]int64, len(words))
+	stones := map[int]int{}
 
-	for i, word := range words {
-		stone, _ := strconv.ParseInt(word, 10, 64)
-		stones[i] = stone
+	for _, word := range words {
+		stone, _ := strconv.Atoi(word)
+		stones[stone] = 1
 	}
 
-	hist := Histogram(stones)
 	for blink := 0; blink < 75; blink++ {
-		newstones := map[int64]int64{}
+		if blink == 25 {
+			println(CountHist(stones))
+		}
 
-		for stone, count := range hist {
+		newstones := map[int]int{}
+
+		for stone, count := range stones {
 			for _, newstone := range EvolveStone(stone) {
 				newstones[newstone] += count
 			}
 		}
 
-		hist = newstones
-
-		if blink == 24 {
-			println(CountHist(hist))
-		}
+		stones = newstones
 	}
 
-	println(CountHist(hist))
+	println(CountHist(stones))
 }
 
-func Largest(stones []int64) int64 {
-	return slices.Max(stones)
-}
-
-func CountHist(hist map[int64]int64) int64 {
-	total := int64(0)
+func CountHist(hist map[int]int) int {
+	total := int(0)
 
 	for _, count := range hist {
 		total += count
@@ -54,23 +48,9 @@ func CountHist(hist map[int64]int64) int64 {
 
 	return total
 }
-func Histogram(stones []int64) map[int64]int64 {
-	histogram := map[int64]int64{}
-	for _, stone := range stones {
-		histogram[stone]++
-	}
 
-	return histogram
-}
-
-func CountUnique(stones []int64) int {
-	sorted := slices.Clone(stones)
-	slices.Sort(sorted)
-	return len(slices.Compact(sorted))
-}
-
-func Log10(num int64) int64 {
-	log := int64(1)
+func Log10(num int) int {
+	log := 1
 
 	for num >= 10 {
 		log++
@@ -80,8 +60,8 @@ func Log10(num int64) int64 {
 	return log
 }
 
-func Pow10(pow int64) int64 {
-	num := int64(1)
+func Pow10(pow int) int {
+	num := 1
 	for pow > 0 {
 		num *= 10
 		pow--
@@ -90,8 +70,8 @@ func Pow10(pow int64) int64 {
 	return num
 }
 
-func EvolveStone(stone int64) []int64 {
-	newstones := []int64{}
+func EvolveStone(stone int) []int {
+	newstones := []int{}
 
 	digitcount := Log10(stone)
 	if stone == 0 {
@@ -101,24 +81,6 @@ func EvolveStone(stone int64) []int64 {
 		newstones = append(newstones, stone/halfpow, stone%halfpow)
 	} else {
 		newstones = append(newstones, stone*2024)
-	}
-
-	return newstones
-}
-
-func NewStones(oldstones []int64) []int64 {
-	newstones := []int64{}
-
-	for _, stone := range oldstones {
-		digitcount := Log10(stone)
-		if stone == 0 {
-			newstones = append(newstones, 1)
-		} else if digitcount%2 == 0 {
-			halfpow := Pow10(digitcount / 2)
-			newstones = append(newstones, stone/halfpow, stone%halfpow)
-		} else {
-			newstones = append(newstones, stone*2024)
-		}
 	}
 
 	return newstones
