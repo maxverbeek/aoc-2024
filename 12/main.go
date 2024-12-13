@@ -5,6 +5,17 @@ import (
 	"os"
 )
 
+type Direction struct {
+	dx, dy int
+}
+
+var (
+	Top   Direction = Direction{0, -1}
+	Right Direction = Direction{1, 0}
+	Down  Direction = Direction{0, 1}
+	Left  Direction = Direction{-1, 0}
+)
+
 func Find(parents []int, id int) int {
 	root := parents[id]
 
@@ -32,6 +43,10 @@ func NewComponent(parents *[]int) int {
 	*parents = append(*parents, newcomponent)
 
 	return newcomponent
+}
+
+func InBounds[T any](grid [][]T, x, y int) bool {
+	return y >= 0 && y < len(grid) && x >= 0 && x < len(grid[y])
 }
 
 func main() {
@@ -109,17 +124,26 @@ func main() {
 		}
 	}
 
-	// count corners (this is wrong)
-	for y := 0; y < height-1; y++ {
-		for x := 0; x < width; x++ {
-			if x-1 >= 0 && components[y][x] != components[y+1][x-1] {
-				corners[components[y][x]]++
-				corners[components[y+1][x-1]]++
-			}
+	cornerstop := [...]Direction{Top, Left, Down, Right}
+	cornersleft := [...]Direction{Right, Top, Left, Down}
+	// debugdirections := [...]string{"top-right", "left-top", "down-left", "right-down"}
 
-			if x+1 < width && components[y][x] != components[y+1][x+1] {
-				corners[components[y][x]]++
-				corners[components[y+1][x+1]]++
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			this := components[y][x]
+
+			// iterate over all corner pairs, check if both corners are OOB or a different component
+			for i := range cornersleft {
+				cl, ct := cornersleft[i], cornerstop[i]
+
+				checktop := InBounds(components, x+ct.dx, y+ct.dy) && components[y+ct.dy][x+ct.dx] == this
+				checkleft := InBounds(components, x+cl.dx, y+cl.dy) && components[y+cl.dy][x+cl.dx] == this
+				checkboth := InBounds(components, x+ct.dx+cl.dx, y+ct.dy+cl.dy) && components[y+ct.dy+cl.dy][x+ct.dx+cl.dx] == this
+
+				if (!checktop && !checkleft) || (checktop && checkleft && !checkboth) {
+					// fmt.Printf("corner for area %d at (%d, %d) in direction %s\n", this, y, x, debugdirections[i])
+					corners[this]++
+				}
 			}
 		}
 	}
@@ -128,13 +152,8 @@ func main() {
 	part2 := 0
 
 	for areatype, area := range area {
-		perimeter := edges[areatype]
-		part1 += area * perimeter
-	}
-
-	for areatype, area := range area {
-		numedges := corners[areatype]
-		part2 += area * numedges
+		part1 += area * edges[areatype]
+		part2 += area * corners[areatype]
 	}
 
 	println(part1, part2)
