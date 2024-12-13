@@ -35,38 +35,25 @@ func main() {
 	println(part1, part2)
 }
 
-func Gcd(a, b int) int {
-	for b != 0 {
-		a, b = b, a%b
-	}
-
-	return a
-}
-
 func Solve(button1, button2, dest Tuple2) (int, int) {
+	// aA + bB = dest
+	// a x1 + b x2 = Dx
+	// a y1 + b y2 = Dy
 
-	if dest.x%Gcd(button1.x, button2.x) != 0 || dest.y%Gcd(button1.y, button2.y) != 0 {
+	// determinant = x1 * y2 - x2 * y1
+	d := button1.x*button2.y - button2.x*button1.y
+
+	if d == 0 {
 		return 0, 0
 	}
 
-	// how many times can we fit button 2 before having to press button 1?
-	times2 := min(dest.x/button2.x, dest.y/button2.y)
-	times1 := 0
+	t1d := dest.x*button2.y - dest.y*button2.x
+	t2d := dest.y*button1.x - dest.x*button1.y
 
-	for times2 >= 0 {
-		times1 = min((dest.x-button2.x*times2)/button1.x, (dest.y-button2.y*times2)/button1.y)
-
-		covered := Tuple2{
-			x: button2.x*times2 + button1.x*times1,
-			y: button2.y*times2 + button1.y*times1,
-		}
-
-		if covered == dest {
-			return times1, times2
-		}
-
-		times2--
+	// ensure integer solutions
+	if t1d%d != 0 || t2d%d != 0 {
+		return 0, 0
 	}
 
-	return 0, 0
+	return t1d / d, t2d / d
 }
