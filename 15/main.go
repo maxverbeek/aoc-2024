@@ -3,7 +3,6 @@ package main
 import (
 	"io"
 	"os"
-	"slices"
 	"strings"
 )
 
@@ -16,14 +15,20 @@ const (
 	Left
 )
 
+type Block rune
+
 const (
-	Box      rune = 'O'
-	BoxLeft  rune = '['
-	BoxRight rune = ']'
-	Wall     rune = '#'
-	Space    rune = '.'
-	Player   rune = '@'
+	Box      Block = 'O'
+	BoxLeft  Block = '['
+	BoxRight Block = ']'
+	Wall     Block = '#'
+	Space    Block = '.'
+	Player   Block = '@'
 )
+
+func (b Block) IsBox() bool {
+	return b == Box || b == BoxLeft || b == BoxRight
+}
 
 func DirectionFromRune(r rune) Direction {
 	switch r {
@@ -77,13 +82,13 @@ func (d Direction) Add(x, y int) (int, int) {
 }
 
 type WallOrGap struct {
-	block rune
+	block Block
 	x, y  int
 }
 
-func WhatIsAtTheEndOfTheBoxes(grid [][]rune, x, y int, dir Direction) WallOrGap {
+func WhatIsAtTheEndOfTheBoxes(grid [][]Block, x, y int, dir Direction) WallOrGap {
 	// we're surrounded with #, so no need to check for out of bounds in this loop
-	for x, y = dir.Add(x, y); grid[y][x] == 'O'; x, y = dir.Add(x, y) {
+	for x, y = dir.Add(x, y); grid[y][x] == Box; x, y = dir.Add(x, y) {
 	}
 
 	return WallOrGap{
@@ -93,27 +98,82 @@ func WhatIsAtTheEndOfTheBoxes(grid [][]rune, x, y int, dir Direction) WallOrGap 
 	}
 }
 
-func IsBoxPushable(grid [][]rune, x, y int, dir Direction) bool {
-	_, dy := dir.DxDy()
-	vertical := dy != 0
+func CanPushBoxes(grid [][]Block, x, y int, dir Direction) bool {
+	nx, ny := dir.Add(x, y)
+	vertical := y != ny
 
-	if !vertical {
-		nx, ny := dir.Add(x, y)
-		for grid[ny][nx] == BoxLeft || grid[ny][nx] == BoxRight {
-			x, y = nx, ny
-		}
-
-		return grid[ny][nx] == Space
+	if grid[ny][nx] == Space {
+		return true
 	}
 
-	panic("TODO")
+	if grid[ny][nx] == Wall {
+		return false
+	}
+
+	if !grid[ny][nx].IsBox() {
+		panic("somehow ended up not at a box")
+	}
+
+	if !vertical {
+		return CanPushBoxes(grid, nx, ny, dir)
+	}
+
+	// we are pushing boxes vertically, so assign the left half to l and the right to r
+	var lx, ly, rx, ry int
+
+	if grid[ny][nx] == BoxLeft {
+		lx, ly = nx, ny
+		rx, ry = nx+1, ny
+	} else {
+		lx, ly = nx-1, ny
+		rx, ry = nx, ny
+	}
+
+	// with overlapping boxes, this has the potential to make lots of duplicate calls
+	// FIXME: cache this
+	return CanPushBoxes(grid, lx, ly, dir) && CanPushBoxes(grid, rx, ry, dir)
 }
 
-func SumCoordsBoxes(grid [][]rune) int {
+func MoveBoxes(grid [][]Block, x, y int, dir Direction) {
+	nx, ny := dir.Add(x, y)
+	vertical := y != ny
+
+	if grid[ny][nx] == Space {
+		grid[ny][nx], grid[y][x] = grid[y][x], grid[ny][nx]
+		return
+	}
+
+	if !vertical && grid[ny][nx].IsBox() {
+		// first move the next boxes
+		MoveBoxes(grid, nx, ny, dir)
+		// then move the current box into the newly created space
+		grid[ny][nx], grid[y][x] = grid[y][x], grid[ny][nx]
+
+		return
+	}
+
+	var lx, ly, rx, ry int
+	if grid[ny][nx] == BoxLeft {
+		lx, ly = nx, ny
+		rx, ry = nx+1, ny
+	} else {
+		lx, ly = nx-1, ny
+		rx, ry = nx, ny
+	}
+
+	// move the boxes up ahead
+	MoveBoxes(grid, lx, ly, dir)
+	MoveBoxes(grid, rx, ry, dir)
+
+	// move the current box into its newly created space
+	grid[ny][nx], grid[y][x] = grid[y][x], grid[ny][nx]
+}
+
+func SumCoordsBoxes(grid [][]Block) int {
 	sum := 0
 	for y := 0; y < len(grid); y++ {
 		for x := 0; x < len(grid[y]); x++ {
-			if grid[y][x] == Box {
+			if grid[y][x] == Box || grid[y][x] == BoxLeft {
 				sum += y*100 + x
 			}
 		}
@@ -122,48 +182,49 @@ func SumCoordsBoxes(grid [][]rune) int {
 	return sum
 }
 
-func Enlarge(grid [][]rune) [][]rune {
-	larger := make([][]rune, len(grid))
+func Enlarge(input string) string {
+	input = strings.ReplaceAll(input, "#", "##")
+	input = strings.ReplaceAll(input, "O", "[]")
+	input = strings.ReplaceAll(input, ".", "..")
+	input = strings.ReplaceAll(input, "@", "@.")
 
-	for _, row := range grid {
-		strrow := string(row)
-
-		strrow = strings.ReplaceAll(strrow, "#", "##")
-		strrow = strings.ReplaceAll(strrow, "O", "[]")
-		strrow = strings.ReplaceAll(strrow, ".", "..")
-		strrow = strings.ReplaceAll(strrow, ".", "@.")
-
-		larger = append(larger, []rune(strrow))
-	}
-
-	return larger
+	return input
 }
 
-func FilterPlayer(grid [][]rune) ([][]rune, int, int) {
-	g := slices.Clone(grid)
+func FilterPlayer(input string) ([][]Block, int, int) {
+	world := [][]Block{}
 
-	for y := 0; y < len(grid); y++ {
-		for x := 0; x < len(grid[y]); x++ {
-			if grid[y][x] == Player {
-				g[y][x] = Space
-				return g, x, y
-			}
+	var x, y int
+
+	for i, line := range strings.Split(input, "\n") {
+		world = append(world, []Block(line))
+
+		if j := strings.Index(line, "@"); j >= 0 {
+			y = i
+			x = j
+			world[y][x] = Space
 		}
 	}
 
-	panic("no player found")
+	if x == 0 || y == 0 {
+		panic("no player found")
+	}
+
+	return world, x, y
+}
+
+func Draw(grid [][]Block) {
+	for _, line := range grid {
+		println(string(line))
+	}
 }
 
 func main() {
 	input, _ := io.ReadAll(os.Stdin)
 	blocks := strings.Split(string(input), "\n\n")
 
-	world := [][]rune{}
+	world, x, y := FilterPlayer(blocks[0])
 	directions := []Direction{}
-
-	for _, line := range strings.Split(blocks[0], "\n") {
-		world = append(world, []rune(line))
-	}
 
 	for _, dir := range blocks[1] {
 		if dir == '\n' {
@@ -172,12 +233,14 @@ func main() {
 		directions = append(directions, DirectionFromRune(dir))
 	}
 
-	println(Part1(world, directions))
+	println(Part1(world, x, y, directions))
+
+	world, x, y = FilterPlayer(Enlarge(blocks[0]))
+
+	println(Part2(world, x, y, directions))
 }
 
-func Part1(grid [][]rune, directions []Direction) int {
-	world, x, y := FilterPlayer(grid)
-
+func Part1(world [][]Block, x, y int, directions []Direction) int {
 	for _, direction := range directions {
 
 		nx, ny := direction.Add(x, y)
@@ -190,6 +253,21 @@ func Part1(grid [][]rune, directions []Direction) int {
 				world[what.y][what.x], world[ny][nx] = world[ny][nx], world[what.y][what.x]
 				x, y = nx, ny
 			}
+		} else if world[ny][nx] == Space {
+			x, y = nx, ny
+		}
+	}
+
+	return SumCoordsBoxes(world)
+}
+
+func Part2(world [][]Block, x, y int, directions []Direction) int {
+	for _, direction := range directions {
+		nx, ny := direction.Add(x, y)
+
+		if world[ny][nx].IsBox() && CanPushBoxes(world, x, y, direction) {
+			MoveBoxes(world, x, y, direction)
+			x, y = nx, ny
 		} else if world[ny][nx] == Space {
 			x, y = nx, ny
 		}
