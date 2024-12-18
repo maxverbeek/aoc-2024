@@ -72,6 +72,19 @@ func (s *State) Execute(opcode, operand int64) {
 	s.pc += 2
 }
 
+func InvertFast(a int64) int64 {
+	out := int64(0)
+
+	// this is my input program, translated into Go
+	for a > 0 {
+		out = out << 3
+		out += (a & 0b111) ^ ((a>>((a&0b111)^2))^1)&0b111
+		a = a >> 3
+	}
+
+	return out
+}
+
 func ExecFast(a, b, c int64) int64 {
 	out := int64(0)
 
@@ -81,7 +94,8 @@ func ExecFast(a, b, c int64) int64 {
 		// c = a >> b
 		// b = b ^ c
 		// b = b ^ 3
-		out = (out << 3) + (a & 0b111) ^ ((a>>((a&0b111)^2))^1)&0b111
+		out = out << 3
+		out = (a & 0b111) ^ ((a>>((a&0b111)^2))^1)&0b111
 		a = a >> 3
 	}
 
@@ -182,8 +196,11 @@ func main() {
 
 	println(JoinCommas(state.output))
 
+	fmt.Printf("output: %d\nprogram: %d\n", Shiftall(state.output), Shiftall(state.program))
+
 	result := Shiftall(state.output)
 	resultfast := ExecFast(a, b, c)
 	println(result)
 	println(resultfast)
+	println(JoinCommas(Unshiftall(128837201102239)))
 }
