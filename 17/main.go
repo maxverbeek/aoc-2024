@@ -77,12 +77,11 @@ func ExecFast(a, b, c int64) int64 {
 
 	// this is my input program, translated into Go
 	for a > 0 {
-		b = a & 0b111
-		b = b ^ 2
-		c = a >> b
-		b = b ^ c // b = (b ^ (a >> b) ) ^ 3
-		b = b ^ 3
-		out = (out << 3) + b%8
+		// b = a & 0b111 ^ 2
+		// c = a >> b
+		// b = b ^ c
+		// b = b ^ 3
+		out = (out << 3) + ((a&0b111)^(a>>((a&0b111)^2))^3^2)&0b111
 		a = a >> 3
 	}
 
@@ -177,22 +176,14 @@ func Unshiftall(hugenum int64) []int64 {
 
 func main() {
 	state := Parse(os.Stdin)
+	a, b, c := state.A, state.B, state.C
+
 	RunToHalt(&state)
 
 	println(JoinCommas(state.output))
 
-	result := Shiftall(state.program)
-
-	threads := 8
-
-	perthread := ((1 << 48) - (1 << 47)) / threads
-
-	println(perthread)
-
-	for a := int64(1) << 47; a < 1<<48; a++ {
-		if ExecFast(a, 0, 0) == result {
-			println(a)
-			break
-		}
-	}
+	result := Shiftall(state.output)
+	resultfast := ExecFast(a, b, c)
+	println(result)
+	println(resultfast)
 }
