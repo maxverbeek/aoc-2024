@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	// "slices"
 	"strconv"
 	"strings"
 )
@@ -47,7 +48,7 @@ func (s *State) Fetch() (bool, int64, int64) {
 func (s *State) Execute(opcode, operand int64) {
 	switch opcode {
 	case 0: // adv
-		s.A = s.A / (1 << s.Combo(operand))
+		s.A = s.A >> s.Combo(operand)
 	case 1: // bxl
 		s.B = s.B ^ operand
 	case 2: // bst
@@ -61,9 +62,54 @@ func (s *State) Execute(opcode, operand int64) {
 	case 5: // out
 		s.output = append(s.output, s.Combo(operand)%8)
 	case 6: // bdv
-		s.B = s.A / (1 << s.Combo(operand))
+		s.B = s.A >> s.Combo(operand)
 	case 7: // cdv
-		s.C = s.A / (1 << s.Combo(operand))
+		s.C = s.A >> s.Combo(operand)
+	default:
+		panic(fmt.Sprintf("bad instruction: %d", opcode))
+	}
+
+	s.pc += 2
+}
+
+func ExecFast(a, b, c int64) int64 {
+	out := int64(0)
+
+	// this is my input program, translated into Go
+	for a > 0 {
+		b = a & 0b111
+		b = b ^ 2
+		c = a >> b
+		b = b ^ c // b = (b ^ (a >> b) ) ^ 3
+		b = b ^ 3
+		out = (out << 3) + b%8
+		a = a >> 3
+	}
+
+	return out
+}
+
+func (s *State) Inverted(opcode, operand int64) {
+	switch opcode {
+	case 0: // adv
+		s.A = s.A << s.Combo(operand)
+	case 1: // bxl
+		s.B = s.B ^ operand
+	case 2: // bst
+		s.B = s.Combo(operand) % 8
+	case 3: // jnz
+		if len(s.output) > 0 {
+			s.pc = -2
+		}
+	case 4: // bxc
+		s.B = s.B ^ s.C
+	case 5: // out
+		s.A = s.A + s.output[0]
+		s.output = s.output[1:]
+	case 6: // bdv
+		s.B = s.A << s.Combo(operand)
+	case 7: // cdv
+		s.C = s.A << s.Combo(operand)
 	default:
 		panic(fmt.Sprintf("bad instruction: %d", opcode))
 	}
@@ -109,8 +155,44 @@ func RunToHalt(state *State) {
 	}
 }
 
+func Shiftall(nums []int64) int64 {
+	a := int64(0)
+	for _, num := range nums {
+		a = (a << 3) + num
+	}
+
+	return a
+}
+
+func Unshiftall(hugenum int64) []int64 {
+	nums := []int64{}
+
+	for hugenum > 0 {
+		nums = append(nums, hugenum%8)
+		hugenum >>= 3
+	}
+
+	return nums
+}
+
 func main() {
 	state := Parse(os.Stdin)
 	RunToHalt(&state)
+
 	println(JoinCommas(state.output))
+
+	result := Shiftall(state.program)
+
+	threads := 8
+
+	perthread := ((1 << 48) - (1 << 47)) / threads
+
+	println(perthread)
+
+	for a := int64(1) << 47; a < 1<<48; a++ {
+		if ExecFast(a, 0, 0) == result {
+			println(a)
+			break
+		}
+	}
 }
