@@ -81,7 +81,7 @@ func ExecFast(a, b, c int64) int64 {
 		// c = a >> b
 		// b = b ^ c
 		// b = b ^ 3
-		out = (out << 3) + ((a&0b111)^(a>>((a&0b111)^2))^3^2)&0b111
+		out = (out << 3) + (a & 0b111) ^ ((a>>((a&0b111)^2))^1)&0b111
 		a = a >> 3
 	}
 
