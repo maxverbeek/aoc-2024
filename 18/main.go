@@ -73,15 +73,30 @@ func main() {
 	// alternatively, we only need to re-pathfind every time a square falls on
 	// our current path, but this current algorithm terminates within 10
 	// seconds so i odn't see much reason to optimize it.
-	for _, coord := range coordinates[fall:] {
-		grid[coord.y][coord.x] = true
+	lo, hi := fall, len(coordinates)
+	for lo < hi {
+		mid := (lo + hi) / 2
+		println(lo, mid, hi)
 
-		steps := Bfs(grid, size, Coordinate{0, 0})
-		if steps == -1 {
-			fmt.Printf("%d,%d\n", coord.x, coord.y)
-			break
+		// drop the grid again
+		grid := make([][]bool, size)
+
+		for i := range grid {
+			grid[i] = make([]bool, size)
+		}
+
+		for _, coord := range coordinates[:mid] {
+			grid[coord.y][coord.x] = true
+		}
+
+		if Bfs(grid, size, Coordinate{0, 0}) == -1 {
+			hi = mid - 1
+		} else {
+			lo = mid + 1
 		}
 	}
+
+	fmt.Printf("%d,%d\n", coordinates[lo-1].x, coordinates[lo-1].y)
 }
 
 func Bfs(grid [][]bool, size int, start Coordinate) int {
