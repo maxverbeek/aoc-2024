@@ -109,6 +109,79 @@ func TypeCombinations(keypad map[rune]Tuple, cache map[CacheKey][][]rune, from r
 	return prefixes
 }
 
+func CombineGreedy(keypad map[rune]Tuple, combination []rune) []rune {
+	result := []rune{}
+	from := 'A'
+
+	for i := range combination {
+		to := combination[i]
+
+		fx, fy := keypad[from].x, keypad[from].y
+		tx, ty := keypad[to].x, keypad[to].y
+
+		hfirst, vfirst := Tuple{x: tx, y: fy}, Tuple{x: fx, y: ty}
+
+		// the ideal order is left, down, right up, ordered by decreasing distance from the A button
+		// but check if we can go left first due to the empty square
+		// since the empty square is in top-left, or bottom left for the numpad,
+		// we never have to worry about crossing it when going right
+		if tx < fx && keypad[' '] != hfirst {
+			// want to go left and can go left
+			for tx < fx {
+				result = append(result, '<')
+				fx--
+			}
+		}
+
+		if ty > fy && keypad[' '] != vfirst {
+			// want to go down and can go down
+			for ty > fy {
+				result = append(result, 'v')
+				fy++
+			}
+		}
+
+		if ty < fy && keypad[' '] != vfirst {
+			// want to go up and can go up
+			for ty < fy {
+				result = append(result, '^')
+				fy--
+			}
+		}
+
+		for tx > fx {
+			// going right is always safe
+			result = append(result, '>')
+			fx++
+		}
+
+		// if we couldn't go left at first, we certainly can now because both
+		// vertical directions are possible and have been executed if the
+		// horizontal direction was problematic.
+		for tx < fx {
+			result = append(result, '<')
+			fx--
+		}
+
+		// same for going down: left and right have now definitely been covered
+		for ty > fy {
+			result = append(result, 'v')
+			fy++
+		}
+
+		// going up as well
+		for ty < fy {
+			result = append(result, '^')
+			fy--
+		}
+
+		result = append(result, 'A')
+		from = to
+	}
+
+	return result
+}
+
 func Allpads(pads []map[rune]Tuple, combination []rune) [][]rune {
 	if len(pads) == 0 {
 		return [][]rune{combination}
@@ -155,19 +228,38 @@ func RobotIndirection(combination []rune) []rune {
 	return combinations[minidx]
 }
 
+func EncodePadsGreedy(pads []map[rune]Tuple, combination []rune) []rune {
+	for i, pad := range pads {
+		fmt.Printf("encoding pad %d with length %d\n", i, len(combination))
+		combination = CombineGreedy(pad, combination)
+	}
+
+	return combination
+}
+
 func main() {
-	part1 := 0
+	part1, part2 := 0, 0
 	scanner := bufio.NewScanner(os.Stdin)
+
+	part1maps := []map[rune]Tuple{numpad, dirpad, dirpad}
+	part2maps := make([]map[rune]Tuple, 27)
+
+	part2maps[0] = numpad
+
+	for i := 0; i < 26; i++ {
+		part2maps[i+1] = dirpad
+	}
 
 	for scanner.Scan() {
 		var num int
 		fmt.Sscanf(scanner.Text(), "%dA", &num)
 
-		humaninput := RobotIndirection([]rune(scanner.Text()))
-		part1 += len(humaninput) * num
+		part1input := EncodePadsGreedy(part1maps, []rune(scanner.Text()))
+		part2input := EncodePadsGreedy(part2maps, []rune(scanner.Text()))
 
-		fmt.Printf("%s: %d*%d = %d: %s\n", scanner.Text(), len(humaninput), num, len(humaninput)*num, string(humaninput))
+		part1 += len(part1input) * num
+		part2 += len(part2input) * num
 	}
 
-	println(part1)
+	println(part1, part2)
 }
