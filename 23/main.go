@@ -97,6 +97,8 @@ func main() {
 
 	degree := 1
 
+	poisoned := map[string]bool{}
+
 	for {
 		// increase each subgraph by 1 degree
 		nextdegreesubgraphs := []map[string]struct{}{}
@@ -108,6 +110,11 @@ func main() {
 				for neighbour := range graph[node] {
 					if len(graph[neighbour]) <= degree {
 						// this neighbour does not have enough edges to be a reasonable candidate
+						continue
+					}
+
+					if poisoned[neighbour] {
+						// this node has been excluded (see below)
 						continue
 					}
 					neighbours[neighbour] = struct{}{}
@@ -147,6 +154,25 @@ func main() {
 
 		if len(nextdegreesubgraphs) == 0 {
 			break
+		}
+
+		// all nodes that are no longer part of a large subgraph can be
+		// poisoned, as they are never going to be part of the largest
+		// subgraph, so they dont have to be checked again
+		for _, sg := range fcsubgraphs {
+			for node := range sg {
+				used := false
+				for _, sg2 := range nextdegreesubgraphs {
+					if _, exists := sg2[node]; exists {
+						used = true
+						break
+					}
+				}
+
+				if !used {
+					poisoned[node] = true
+				}
+			}
 		}
 
 		fcsubgraphs = nextdegreesubgraphs
