@@ -2,8 +2,10 @@ package main
 
 import (
 	"bufio"
-	"fmt"
+	"maps"
 	"os"
+	"slices"
+	"strings"
 )
 
 // connected components
@@ -41,56 +43,60 @@ func (cc *CC) Union(a, b int) {
 }
 
 func main() {
-	components := CC([]int{})
-	computer2components := map[string]int{}
+	graph := map[string]map[string]bool{}
 
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for scanner.Scan() {
-		var computer1, computer2 string
-		fmt.Sscanf(scanner.Text(), "%s-%s", &computer1, &computer2)
+		connection := strings.Split(scanner.Text(), "-")
 
-		if _, ok := computer2components[computer1]; !ok {
-			computer2components[computer1] = components.NewComponent()
+		computer1, computer2 := connection[0], connection[1]
+
+		if _, exists := graph[computer1]; !exists {
+			graph[computer1] = map[string]bool{}
 		}
 
-		if _, ok := computer2components[computer1]; !ok {
-			computer2components[computer2] = components.NewComponent()
+		if _, exists := graph[computer2]; !exists {
+			graph[computer2] = map[string]bool{}
 		}
 
-		components.Union(computer2components[computer1], computer2components[computer2])
+		graph[computer1][computer2] = true
+		graph[computer2][computer1] = true
 	}
 
-	component2computers := map[int][]string{}
+	computers := slices.Sorted(maps.Keys(graph))
 
-	for computer, component := range computer2components {
-		root := components.Find(component)
+	triples := [][3]string{}
 
-		if _, exists := component2computers[root]; !exists {
-			component2computers[root] = []string{}
-		}
+	for i, c1 := range computers {
+		for j, c2 := range computers[i+1:] {
+			for _, c3 := range computers[i+j+1:] {
+				if !graph[c1][c2] || !graph[c2][c3] || !graph[c3][c1] {
+					continue
+				}
 
-		component2computers[root] = append(component2computers[root], computer)
-	}
-
-	// we are looking for sets of size 3, where one of the computers has a t
-	count := 0
-
-	for i, computers := range component2computers {
-
-		fmt.Printf("component %d: %d computers\n", i, len(computers))
-
-		if len(computers) != 3 {
-			continue
-		}
-
-		for _, c := range computers {
-			if c[0] == 't' {
-				count++
-				break
+				if c1[0] == 't' || c2[0] == 't' || c3[0] == 't' {
+					triples = append(triples, [...]string{c1, c2, c3})
+				}
 			}
 		}
 	}
 
-	println(count)
+	println(len(triples))
+
+	mostconnections := 0
+	mostconnected := []string{}
+
+	for comp, edges := range graph {
+		if len(edges) > mostconnections {
+			mostconnections = len(edges)
+			mostconnected = []string{comp}
+		} else if len(edges) == mostconnections {
+			mostconnected = append(mostconnected, comp)
+		}
+	}
+
+	slices.Sort(mostconnected)
+
+	println(strings.Join(mostconnected, ","))
 }
