@@ -4,10 +4,57 @@ import (
 	"bufio"
 	"maps"
 	"os"
-	"reflect"
 	"slices"
 	"strings"
 )
+
+type Set[T comparable] map[T]struct{}
+
+func (s Set[T]) Add(item T) {
+	s[item] = struct{}{}
+}
+
+func (s Set[T]) Delete(item T) {
+	delete(s, item)
+}
+
+func (s Set[T]) Contains(item T) bool {
+	_, exists := s[item]
+
+	return exists
+}
+
+func (s Set[T]) Union(other Set[T]) Set[T] {
+	result := s.Clone()
+	maps.Copy(result, other)
+
+	return result
+}
+
+func (s Set[T]) Intersect(other Set[T]) Set[T] {
+	result := Set[T]{}
+	for item := range s {
+		if other.Contains(item) {
+			result.Add(item)
+		}
+	}
+
+	return result
+}
+
+func (s Set[T]) Remove(other Set[T]) Set[T] {
+	result := s.Clone()
+
+	for key := range other {
+		delete(result, key)
+	}
+
+	return result
+}
+
+func (s Set[T]) Clone() Set[T] {
+	return maps.Clone(s)
+}
 
 // connected components
 type CC []int
@@ -85,103 +132,49 @@ func main() {
 
 	println(len(triples))
 
-	// start out with fully connected singleton graphs
-	fcsubgraphs := []map[string]struct{}{}
-	for node := range graph {
-		fcsubgraphs = append(fcsubgraphs, map[string]struct{}{node: struct{}{}})
+	vertices := Set[string]{}
+
+	for v := range graph {
+		vertices.Add(v)
 	}
 
-	// iterate over all edges of the graph, and check for each edge if the
-	// connected node not yet part of the graph is connected to every node in
-	// the graph
+	fcsubgraphs := BronKerbosch(graph, Set[string]{}, vertices, Set[string]{})
 
-	degree := 1
+	largest := fcsubgraphs[0]
 
-	poisoned := map[string]bool{}
-
-	for {
-		// increase each subgraph by 1 degree
-		nextdegreesubgraphs := []map[string]struct{}{}
-		for _, sg := range fcsubgraphs {
-			// keep track of neighbours in a set so we don't consider duplicates
-			neighbours := map[string]struct{}{}
-
-			for node := range sg {
-				for neighbour := range graph[node] {
-					if len(graph[neighbour]) <= degree {
-						// this neighbour does not have enough edges to be a reasonable candidate
-						continue
-					}
-
-					if poisoned[neighbour] {
-						// this node has been excluded (see below)
-						continue
-					}
-					neighbours[neighbour] = struct{}{}
-				}
-			}
-
-			// for each neighbour, check if they are connected to every node in
-			// the graph. if so we have a new subgraph of SG + [neighbour]
-			for neighbour := range neighbours {
-				connected := true
-				for node := range sg {
-					if !graph[node][neighbour] {
-						connected = false
-						break
-					}
-				}
-
-				if connected {
-					sg2 := maps.Clone(sg)
-					sg2[neighbour] = struct{}{}
-					nextdegreesubgraphs = append(nextdegreesubgraphs, sg2)
-				}
-			}
+	for _, sg := range fcsubgraphs[1:] {
+		if len(sg) > len(largest) {
+			largest = sg
 		}
-
-		// prune next degree subgraphs, because there should be duplicates when
-		// 2 different graphs merge
-		for i := len(nextdegreesubgraphs) - 1; i >= 0; i-- {
-			for j := range nextdegreesubgraphs[:len(nextdegreesubgraphs)-i-1] {
-				if reflect.DeepEqual(nextdegreesubgraphs[i], nextdegreesubgraphs[j]) {
-					// swap with last element of the list
-					nextdegreesubgraphs = RemoveFromSlice(nextdegreesubgraphs, i)
-					break
-				}
-			}
-		}
-
-		if len(nextdegreesubgraphs) == 0 {
-			break
-		}
-
-		// all nodes that are no longer part of a large subgraph can be
-		// poisoned, as they are never going to be part of the largest
-		// subgraph, so they dont have to be checked again
-		for _, sg := range fcsubgraphs {
-			for node := range sg {
-				used := false
-				for _, sg2 := range nextdegreesubgraphs {
-					if _, exists := sg2[node]; exists {
-						used = true
-						break
-					}
-				}
-
-				if !used {
-					poisoned[node] = true
-				}
-			}
-		}
-
-		fcsubgraphs = nextdegreesubgraphs
-		degree++
-
-		println(degree)
 	}
 
-	println(strings.Join(slices.Sorted(maps.Keys(fcsubgraphs[0])), ","))
+	println(strings.Join(slices.Sorted(maps.Keys(largest)), ","))
+}
+
+func BronKerbosch(graph map[string]map[string]bool, R, P, X Set[string]) []Set[string] {
+	if len(P) == 0 && len(X) == 0 {
+		return []Set[string]{R.Clone()}
+	}
+
+	R, P, X = R.Clone(), P.Clone(), X.Clone()
+
+	result := []Set[string]{}
+
+	for vertex := range P {
+		neighbours := Set[string]{}
+		for neighbour := range graph[vertex] {
+			neighbours.Add(neighbour)
+		}
+
+		R.Add(vertex)
+		result = append(result, BronKerbosch(graph, R, P.Intersect(neighbours), X.Intersect(neighbours))...)
+		delete(R, vertex)
+
+		delete(P, vertex)
+		X.Add(vertex)
+	}
+
+	return result
 }
 
 func RemoveFromSlice[T any](slice []T, idx int) []T {
